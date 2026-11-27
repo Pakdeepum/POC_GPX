@@ -30,15 +30,17 @@ Each folder has its own `CLAUDE.md`. Each backend service has one too, under `My
 ## Product decisions
 
 - **Base:** one pre-made base per frame shape. Terrain sizes are fixed per base variant.
-- **Sizes:** user picks 50, 100 or 150 mm (widest dimension).
+- **Sizes:** user picks 100, 150 or 200 mm (widest dimension). 50 mm was dropped: too small for the terrain detail. 200 mm uses 0.67 mm grid cells (the 300 cells per side cap).
 - **Frame:** cut outline only, no raised rim. The base acts as the frame.
 - **Shape defaults:** pentagon point-up, hexagon flat-top, ellipse 4:3.
 - **Connectors:** 3 sockets, Ø5 mm × 4 mm deep, in the underside of the terrain piece, for separate pins or magnets. 0.2 mm clearance. The base is adapted to match.
 - **Base color:** the color of the separately printed base. Used in the 3D preview only. The terrain print needs at most 5 filaments (4 terrain + route).
 - **Terrain types (fixed set of 4):** `water`, `snow`, `vegetation`, `terrain` (default). A type without its own color falls back to `terrain`.
-- **Route:** raised ribbon, 1.2 mm wide × 0.8 mm high above the surface. Route height comes from elevation data, not GPX elevation.
+- **Route:** raised ribbon, 0.8 mm high above the surface. Route height comes from elevation data, not GPX elevation.
+  - Width is a per-project setting: 0.4–2.0 mm in 0.1 mm steps. 0.4 mm is one standard nozzle line, the thinnest printable width. New projects start at 0.8 mm; older projects keep 1.2 mm until edited. The height is not a setting.
   - The ribbon is a separate part that sits 0.6 mm into the terrain. The terrain part has a matching groove, so the parts do not overlap.
-  - At the frame edge the ribbon is cut flush with the outline. Pieces narrower than 0.8 mm (the minimum feature) are removed, so with 0 % padding a route that runs along the edge can lose those pieces.
+  - At the frame edge the ribbon is cut flush with the outline. Pieces narrower than min(0.8 mm, 0.8 × width), measured before the flush trim, are removed, so with 0 % padding a route that runs along the edge can lose those pieces.
+  - Gaps under 0.8 mm (two nozzle lines) between route passes are filled with route, so no unprintable terrain strip is left between them.
   - If nothing printable is left, the model has no route part and the UI shows a notice.
 - **Area:** auto-fit to the route bounding box, plus a user padding %.
   - Padding is 0–100 %, default 10.
