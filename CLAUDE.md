@@ -37,6 +37,9 @@ Each folder has its own `CLAUDE.md`. Each backend service has one too, under `My
 - **Base color:** the color of the separately printed base. Used in the 3D preview only. The terrain print needs at most 5 filaments (4 terrain + route).
 - **Terrain types (fixed set of 4):** `water`, `snow`, `vegetation`, `terrain` (default). A type without its own color falls back to `terrain`.
 - **Route:** raised ribbon, 1.2 mm wide × 0.8 mm high above the surface. Route height comes from elevation data, not GPX elevation.
+  - The ribbon is a separate part that sits 0.6 mm into the terrain. The terrain part has a matching groove, so the parts do not overlap.
+  - At the frame edge the ribbon is cut flush with the outline. Pieces narrower than 0.8 mm (the minimum feature) are removed, so with 0 % padding a route that runs along the edge can lose those pieces.
+  - If nothing printable is left, the model has no route part and the UI shows a notice.
 - **Area:** auto-fit to the route bounding box, plus a user padding %.
   - Padding is 0–100 %, default 10.
   - `area.sizeMeters` is the east-west ground width of the outline, which maps to `sizeMm`.
@@ -51,6 +54,9 @@ Each folder has its own `CLAUDE.md`. Each backend service has one too, under `My
 - **Vertical exaggeration:** auto mode fits relief to about 20 mm, capped at 10×, so flat areas do not amplify data noise. The user can override it manually.
 - **3D preview:** the terrain piece uses the terrain color and sits on a simple plinth in the base color. The plinth is for the preview only.
 - **Output:** 3MF with one part per color, plus a ZIP of binary STL files (one per color).
+  - The 3MF holds one parent object made of the parts, so a slicer loads one object with aligned parts. Each part has a display color.
+  - The UI offers only the 3MF and the ZIP. The per-part STLs are stored for the preview.
+  - Route and terrain colors count toward the "outdated" check (config hash). The base color does not.
 - **Generation:** synchronous request (up to about 60 s). No auth for the POC.
 
 ## Data sources (free, no API keys)
@@ -110,7 +116,7 @@ Use built-in `fetch` (no axios) and `crypto.randomUUID()` (no uuid).
 | P1 (done) | GPX upload, parse, persist, map view | Sample `.gpx` shows on the map. `db/projects.json` and `db/gpx-files.json` are written. |
 | P2 (done) | First full flow: square frame, one color | Terrain grid, solid mesh, STL download and 3D preview work. STL opens as manifold at the chosen size. |
 | P3 (done) | All 5 shapes, sizes 50/100/150, padding, exaggeration | Every shape gives a manifold mesh whose outline matches the map overlay. |
-| P4 | Route part, 3MF and STL ZIP | Opens in a slicer as one object with aligned parts. |
+| P4 (done) | Route part, 3MF and STL ZIP | Opens in a slicer as one object with aligned parts. |
 | P5 | Terrain colors from WorldCover | A lake becomes its own part. A 5th terrain color is rejected. |
 | P6 | Connector sockets | Sockets match the standard spec. Test print fits the base. |
 | — | Wordings (th/en) | Wired in during P1 and used by every screen after that. |
