@@ -1,0 +1,3 @@
+# App folders are separate git repos (my-trophy-web, my-trophy-service)
+/MyTrophy/
+/MyTrophyService/

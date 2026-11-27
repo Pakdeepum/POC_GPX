@@ -12,7 +12,8 @@ Web app that turns a `.gpx` route into a 3D-printable terrain piece, used like a
 Each folder has its own `CLAUDE.md`. Each backend service has one too, under `MyTrophyService/apps/<service>/`.
 
 - Package manager: npm.
-- Root `POC_GPX/` is not a git repo. Run git commands inside `MyTrophy/` or `MyTrophyService/`.
+- Root `POC_GPX/` is its own git repo (remote `Pakdeepum/POC_GPX`). Its `.gitignore` excludes `MyTrophy/` and `MyTrophyService/`, so app code changes are committed only inside those two repos.
+- `Exam/` holds sample GPX files from the user for manual tests.
 
 ## Requirements
 
@@ -37,7 +38,9 @@ Each folder has its own `CLAUDE.md`. Each backend service has one too, under `My
 - **Terrain types (fixed set of 4):** `water`, `snow`, `vegetation`, `terrain` (default). A type without its own color falls back to `terrain`.
 - **Route:** raised ribbon, 1.2 mm wide × 0.8 mm high above the surface. Route height comes from elevation data, not GPX elevation.
 - **Area:** auto-fit to the route bounding box, plus a user padding %.
-- **Vertical exaggeration:** auto mode fits relief to about 20 mm. The user can override it manually.
+- **GPX parsing:** all tracks and segments are joined into one route line. Upload limit is 20 MB.
+- **Vertical exaggeration:** auto mode fits relief to about 20 mm, capped at 10×, so flat areas do not amplify data noise. The user can override it manually.
+- **3D preview:** the terrain piece uses the terrain color and sits on a simple plinth in the base color. The plinth is for the preview only.
 - **Output:** 3MF with one part per color, plus a ZIP of binary STL files (one per color).
 - **Generation:** synchronous request (up to about 60 s). No auth for the POC.
 
@@ -53,7 +56,10 @@ Each folder has its own `CLAUDE.md`. Each backend service has one too, under `My
 
 - Two languages: Thai (`th`) and English (`en`).
 - All UI wording lives in the database as JSON keys: `db/wordings.json`, shape `{ "<key>": { "th": "...", "en": "..." } }`.
+- New keys go in the committed seed `MyTrophyService/seed/wordings.json`. project-service merges missing keys into `db/wordings.json` on start and never overwrites existing values.
 - `project-service` owns wordings. The frontend loads them through `GET /api/wordings`.
+- Default language is Thai. The user's choice is saved in the browser (`localStorage`).
+- If wordings fail to load, the frontend shows one hard-coded bilingual message with a retry button. This is the only hard-coded UI text.
 - No i18n package.
 
 ## Coding rules (all projects)
@@ -82,7 +88,7 @@ Each folder has its own `CLAUDE.md`. Each backend service has one too, under `My
 - `@nestjs/microservices`, `@nestjs/config`
 - `class-validator`, `class-transformer`
 - `@types/multer`
-- `fast-xml-parser`, `pngjs`, `geotiff`
+- `fast-xml-parser`, `pngjs` (typed by a local `pngjs.d.ts`, not `@types/pngjs`), `geotiff`
 - `manifold-3d`, `fflate`
 
 Use built-in `fetch` (no axios) and `crypto.randomUUID()` (no uuid).
@@ -91,9 +97,9 @@ Use built-in `fetch` (no axios) and `crypto.randomUUID()` (no uuid).
 
 | Phase | Scope | Done when |
 |---|---|---|
-| P0 | Scaffold both repos and the 4 services | All services start. `GET /api/health` reports every service OK over TCP. |
-| P1 | GPX upload, parse, persist, map view | Sample `.gpx` shows on the map. `db/projects.json` and `db/gpx-files.json` are written. |
-| P2 | First full flow: square frame, one color | Terrain grid, solid mesh, STL download and 3D preview work. STL opens as manifold at the chosen size. |
+| P0 (done) | Scaffold both repos and the 4 services | All services start. `GET /api/health` reports every service OK over TCP. |
+| P1 (done) | GPX upload, parse, persist, map view | Sample `.gpx` shows on the map. `db/projects.json` and `db/gpx-files.json` are written. |
+| P2 (done) | First full flow: square frame, one color | Terrain grid, solid mesh, STL download and 3D preview work. STL opens as manifold at the chosen size. |
 | P3 | All 5 shapes, sizes 50/100/150, padding, exaggeration | Every shape gives a manifold mesh whose outline matches the map overlay. |
 | P4 | Route part, 3MF and STL ZIP | Opens in a slicer as one object with aligned parts. |
 | P5 | Terrain colors from WorldCover | A lake becomes its own part. A 5th terrain color is rejected. |
