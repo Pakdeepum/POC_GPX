@@ -38,6 +38,15 @@ Each folder has its own `CLAUDE.md`. Each backend service has one too, under `My
 - **Terrain types (fixed set of 4):** `water`, `snow`, `vegetation`, `terrain` (default). A type without its own color falls back to `terrain`.
 - **Route:** raised ribbon, 1.2 mm wide × 0.8 mm high above the surface. Route height comes from elevation data, not GPX elevation.
 - **Area:** auto-fit to the route bounding box, plus a user padding %.
+  - Padding is 0–100 %, default 10.
+  - `area.sizeMeters` is the east-west ground width of the outline, which maps to `sizeMm`.
+  - The area is fitted again when the shape or padding changes, so the padded route box always fits inside the cut outline.
+- **Shape geometry:**
+  - The map outline and the mesh outline come from one shared function (`libs/common/src/frame-outline.ts`).
+  - Circle and ellipse use 128 segments.
+  - The ellipse is wide east-west, and north is always up.
+- **Manual exaggeration:** 0.5–20×.
+- **Settings changes:** older models are kept. The UI shows an "outdated" hint until the user generates again.
 - **GPX parsing:** all tracks and segments are joined into one route line. Upload limit is 20 MB.
 - **Vertical exaggeration:** auto mode fits relief to about 20 mm, capped at 10×, so flat areas do not amplify data noise. The user can override it manually.
 - **3D preview:** the terrain piece uses the terrain color and sits on a simple plinth in the base color. The plinth is for the preview only.
@@ -100,7 +109,7 @@ Use built-in `fetch` (no axios) and `crypto.randomUUID()` (no uuid).
 | P0 (done) | Scaffold both repos and the 4 services | All services start. `GET /api/health` reports every service OK over TCP. |
 | P1 (done) | GPX upload, parse, persist, map view | Sample `.gpx` shows on the map. `db/projects.json` and `db/gpx-files.json` are written. |
 | P2 (done) | First full flow: square frame, one color | Terrain grid, solid mesh, STL download and 3D preview work. STL opens as manifold at the chosen size. |
-| P3 | All 5 shapes, sizes 50/100/150, padding, exaggeration | Every shape gives a manifold mesh whose outline matches the map overlay. |
+| P3 (done) | All 5 shapes, sizes 50/100/150, padding, exaggeration | Every shape gives a manifold mesh whose outline matches the map overlay. |
 | P4 | Route part, 3MF and STL ZIP | Opens in a slicer as one object with aligned parts. |
 | P5 | Terrain colors from WorldCover | A lake becomes its own part. A 5th terrain color is rejected. |
 | P6 | Connector sockets | Sockets match the standard spec. Test print fits the base. |
