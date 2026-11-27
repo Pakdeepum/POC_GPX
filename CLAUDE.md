@@ -21,11 +21,12 @@ Each folder has its own `CLAUDE.md`. Each backend service has one too, under `My
 2. Use real map location and real terrain elevation.
 3. Frame shape is selectable: pentagon, square, hexagon, circle, ellipse.
 4. Each terrain type has a configurable color. Route color and base color are configured separately.
-5. A model has at most 4 terrain colors. Route color and base color do not count toward this limit.
+5. A model has at most 4 terrain colors. Route color, building color and base color do not count toward this limit.
 6. Generate only the terrain piece, with sockets to assemble onto the pre-made base.
 7. Frontend: Next.js. Backend: NestJS microservices.
 8. Database: JSON files in a `db` folder for now. PostgreSQL later.
 9. Build screens so the core functions work end to end first. UI polish comes later.
+10. Show real buildings on the map and add them to the 3D file.
 
 ## Product decisions
 
@@ -34,7 +35,7 @@ Each folder has its own `CLAUDE.md`. Each backend service has one too, under `My
 - **Frame:** cut outline only, no raised rim. The base acts as the frame.
 - **Shape defaults:** pentagon point-up, hexagon flat-top, ellipse 4:3.
 - **Connectors:** 3 sockets, Ø5 mm × 4 mm deep, in the underside of the terrain piece, for separate pins or magnets. 0.2 mm clearance. The base is adapted to match.
-- **Base color:** the color of the separately printed base. Used in the 3D preview only. The terrain print needs at most 5 filaments (4 terrain + route).
+- **Base color:** the color of the separately printed base. Used in the 3D preview only. The terrain print needs at most 6 filaments (4 terrain + route + buildings).
 - **Terrain types (fixed set of 4):** `water`, `snow`, `vegetation`, `terrain` (default). A type without its own color falls back to `terrain`.
 - **Route:** raised ribbon, 0.8 mm high above the surface. Route height comes from elevation data, not GPX elevation.
   - Width is a per-project setting: 0.4–2.0 mm in 0.1 mm steps. 0.4 mm is one standard nozzle line, the thinnest printable width. New projects start at 0.8 mm; older projects keep 1.2 mm until edited. The height is not a setting.
@@ -42,6 +43,15 @@ Each folder has its own `CLAUDE.md`. Each backend service has one too, under `My
   - At the frame edge the ribbon is cut flush with the outline. Pieces narrower than min(0.8 mm, 0.8 × width), measured before the flush trim, are removed, so with 0 % padding a route that runs along the edge can lose those pieces.
   - Gaps under 0.8 mm (two nozzle lines) between route passes are filled with route, so no unprintable terrain strip is left between them.
   - If nothing printable is left, the model has no route part and the UI shows a notice.
+- **Buildings:** OSM buildings from the Overpass API, drawn on the map and printed as their own color part.
+  - The map and the model use the same printable layer file, so the map shows exactly the buildings that print. While buildings are on, the map style's own buildings are hidden.
+  - On/off is a per-project setting, on by default (older projects read as on). The building color is fixed at `#e0e0e0` for now; it becomes configurable in P5. It does not count toward the 4 terrain colors.
+  - Height: OSM `height`, else `building:levels` × 3 m, else 6 m. The same vertical exaggeration as the terrain, clamped to 20 mm above the ground, and at least 0.4 mm above the highest ground under the footprint. Flat roofs; the bottom sits 0.6 mm below the lowest ground under the footprint.
+  - Footprints narrower than 0.8 mm or smaller than 1 mm² at print scale are dropped (smaller holes are filled). At most 5000 buildings / 60k vertices, largest first. `building=roof` (open canopies) is left out. Touching row houses are not merged.
+  - Areas wider than 40 km get no buildings (the UI shows a notice). At that scale only very large buildings would remain.
+  - The route wins: buildings are cleared from the route footprint. Priority is route > buildings > terrain.
+  - If Overpass fails during generation, generation fails with `BUILDINGS_UNAVAILABLE` (502).
+- **Part gap:** parts never touch exactly. Each part gives up its neighbor's volume grown by 0.001 mm, because export rounding (3MF 4 decimals, STL float32) would make touching faces overlap. The gap is far below print resolution.
 - **Area:** auto-fit to the route bounding box, plus a user padding %.
   - Padding is 0–100 %, default 10.
   - `area.sizeMeters` is the east-west ground width of the outline, which maps to `sizeMm`.
@@ -58,7 +68,8 @@ Each folder has its own `CLAUDE.md`. Each backend service has one too, under `My
 - **Output:** 3MF with one part per color, plus a ZIP of binary STL files (one per color).
   - The 3MF holds one parent object made of the parts, so a slicer loads one object with aligned parts. Each part has a display color.
   - The UI offers only the 3MF and the ZIP. The per-part STLs are stored for the preview.
-  - Route and terrain colors count toward the "outdated" check (config hash). The base color does not.
+  - Route and terrain colors count toward the "outdated" check (config hash), and so do the buildings toggle and, while on, the building color. The base color does not.
+  - The 3MF description and an `ATTRIBUTION.txt` in the ZIP name the data sources (OSM ODbL only when there is a buildings part).
 - **Generation:** synchronous request (up to about 60 s). No auth for the POC.
 
 ## Data sources (free, no API keys)
@@ -68,6 +79,7 @@ Each folder has its own `CLAUDE.md`. Each backend service has one too, under `My
 | Map display | OpenFreeMap style via MapLibre GL | OSM attribution required |
 | Elevation | AWS Terrain Tiles (Terrarium PNG) | Decode `(R*256 + G + B/256) - 32768`. Oceans contain bathymetry, so clamp water. Attribution required. |
 | Land cover | ESA WorldCover 10 m (COG on public S3) | CC-BY 4.0, attribution required |
+| Buildings | Overpass API (OpenStreetMap), `overpass-api.de` | ODbL, attribution required on the map and in the files. Public server: one request at a time, cache 30 days. It can queue a request for 30–45 s. |
 
 ## UI language
 
@@ -119,6 +131,7 @@ Use built-in `fetch` (no axios) and `crypto.randomUUID()` (no uuid).
 | P2 (done) | First full flow: square frame, one color | Terrain grid, solid mesh, STL download and 3D preview work. STL opens as manifold at the chosen size. |
 | P3 (done) | All 5 shapes, sizes 50/100/150, padding, exaggeration | Every shape gives a manifold mesh whose outline matches the map overlay. |
 | P4 (done) | Route part, 3MF and STL ZIP | Opens in a slicer as one object with aligned parts. |
+| P4.5 (done) | OSM buildings on the map and as their own part | Map buildings match the model. `check:3mf` shows disjoint parts (0 overlap). |
 | P5 | Terrain colors from WorldCover | A lake becomes its own part. A 5th terrain color is rejected. |
 | P6 | Connector sockets | Sockets match the standard spec. Test print fits the base. |
 | — | Wordings (th/en) | Wired in during P1 and used by every screen after that. |
